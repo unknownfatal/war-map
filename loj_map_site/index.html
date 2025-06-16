@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Lands of Jail – Server 133 Live Map</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <style>
+    html,body,#map{height:100%;margin:0}
+    #searchBox{
+      position:absolute;top:10px;left:50%;transform:translateX(-50%);
+      z-index:1000;padding:6px 10px;font-size:14px;border-radius:4px;border:1px solid #888;
+      width:240px;box-shadow:0 2px 6px rgba(0,0,0,.3)
+    }
+  </style>
+</head>
+<body>
+<input id="searchBox" placeholder="Search UID…">
+<div id="map"></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+const map = L.map('map').setView([0,0],4);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+            { attribution:'&copy; OpenStreetMap contributors'}).addTo(map);
+
+let layer=null;
+async function refresh(){
+  const res = await fetch('/api/players',{cache:'no-store'});
+  const data = await res.json();
+  if(layer) map.removeLayer(layer);
+  layer = L.geoJSON(data,{
+    pointToLayer:(_,latlng)=>L.circleMarker(latlng,{radius:5}),
+    onEachFeature:(f,l)=>l.bindPopup(`<b>${f.properties.nick}</b><br>UID: ${f.id}<br>Level ${f.properties.level}`)
+  }).addTo(map);
+}
+refresh();
+setInterval(refresh,30000); // 30‑second live refresh
+
+document.getElementById('searchBox').addEventListener('input',e=>{
+  const q = e.target.value.trim().toLowerCase();
+  if(!layer) return;
+  layer.eachLayer(marker=>{
+    const hit = marker.feature.id.toLowerCase().includes(q);
+    marker.setStyle({opacity:hit?1:0.1,fillOpacity:hit?0.9:0.1});
+    if(hit) map.panTo(marker.getLatLng());
+  });
+});
+</script>
+</body>
+</html>
